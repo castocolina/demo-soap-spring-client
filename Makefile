@@ -2,10 +2,11 @@ clean:
 	./gradlew clean --warning-mode all
 
 build: clean
-	./gradlew build --scan --stacktrace --debug --warning-mode all
+	./gradlew build --warning-mode all
 
+#  --scan --stacktrace --debug
 assemble: clean
-	./gradlew assemble --scan --stacktrace --debug --warning-mode all
+	./gradlew assemble --warning-mode all
 
 build-run-java: build
 	java -jar build/libs/demo-soap-spring-client-0.0.1-SNAPSHOT.jar

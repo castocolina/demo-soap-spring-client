@@ -23,17 +23,21 @@ repositories {
     jcenter()
 }
 
-dependencies {
-    // This dependency is used by the application.
-    // implementation 'com.google.guava:guava:29.0-jre'
-
-    // Use JUnit test framework
-    testImplementation 'junit:junit:4.12'
-}
-
 group = 'com.example'
 version = '0.0.1-SNAPSHOT'
 sourceCompatibility = '11'
+
+// tag::configurations[]
+configurations {
+    jaxb
+}
+// end::configurations[]
+
+repositories {
+    mavenCentral()
+}
+
+
 application {
     // Define the main class for the application.
     mainClassName = 'demo.soap.spring.client.App'
@@ -44,10 +48,51 @@ task downloadWSDL(type: Download) {
     dest "src/main/resources/"
 }
 
-wsimport {
+// tag::wsdl[]
+task genJaxb {
+    ext.sourcesDir = "${buildDir}/generated-sources/jaxb"
+    ext.classesDir = "${buildDir}/classes/jaxb"
+    ext.schema = "src/main/resources/countries.wsdl"
+
+    outputs.dir classesDir
+
+    doLast() {
+        project.ant {
+            taskdef name: "xjc", classname: "com.sun.tools.xjc.XJC2Task",
+                    classpath: configurations.jaxb.asPath
+            mkdir(dir: sourcesDir)
+            mkdir(dir: classesDir)
+
+            xjc(destdir: sourcesDir, schema: schema,
+                    package: "com.example.consumingwebservice.wsdl") {
+                arg(value: "-wsdl")
+                produces(dir: sourcesDir, includes: "**/*.java")
+
+            }
+
+            javac(destdir: classesDir, source: 11, target: 11, debug: true,
+                    debugLevel: "lines,vars,source",
+                    classpath: configurations.jaxb.asPath) {
+                src(path: sourcesDir)
+                include(name: "**/*.java")
+                include(name: "*.java")
+            }
+
+            copy(todir: classesDir) {
+                fileset(dir: sourcesDir, erroronmissingdir: false) {
+                    exclude(name: "**/*.java")
+                }
+            }
+        }
+    }
+}
+// end::wsdl[]
+
+
+/* wsimport {
     // wsdlSourceRoot = "src/main/resources/"
-    // generatedSourceRoot = "/generated-sources/wsdl/main"
-    // generatedClassesRoot = "/classes/main"
+    // generatedSourceRoot = "/generated-sources/wsdl"
+    // generatedClassesRoot = "/classes/wsdl"
 
 //	target = "2.2"
 //	keep = true
@@ -57,6 +102,18 @@ wsimport {
 //	debug = true
 //	xnocompile = true
 
-    // wsdl("src/main/resources/countries.xsd")
     wsdl = "src/main/resources/countries.wsdl"
+}*/
+
+dependencies {
+    // This dependency is used by the application.
+    // implementation 'com.google.guava:guava:29.0-jre'
+
+    // For Java 11:
+    implementation 'org.glassfish.jaxb:jaxb-runtime:2.3.3'
+    implementation(files(genJaxb.classesDir).builtBy(genJaxb))
+    jaxb "com.sun.xml.bind:jaxb-xjc:2.3.3"
+
+    // Use JUnit test framework
+    testImplementation 'junit:junit:4.12'
 }
